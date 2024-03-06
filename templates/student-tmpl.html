@@ -1,0 +1,29 @@
+<!-- The template to display files available for download -->
+<script id="template-download" type="text/x-tmpl">
+{% for (var i=0, file; file=o.files[i]; i++) { %}
+    <tr class="template-download {%=file.thumbnailUrl?' image':''%}">
+        <td class="name-cell">
+            <p class="name">
+                {% if (file.url) { %}
+                    <a href="{%=file.url%}" title="{%=file.name%}" download="{%=file.name%}" {%=file.thumbnailUrl?'data-gallery':''%}>{%=file.name%}</a>
+                {% } else { %}
+                    <span>{%=file.name%}</span>
+                {% } %}
+            </p>
+            {% if (file.error) { %}
+                <div><span class="label label-danger">Error</span> {%=file.error%}</div>
+            {% } %}
+        </td>
+        <td class="size-cell">
+            <span class="size">{%=formatFileSize(file.size)%}</span>
+        </td>
+        <td class="btn-cell">
+            {% if (file.url) { %}
+                <a href="{%=file.url%}" title="{%=file.name%}" download="{%=file.name%}" class="btn btn-default">
+                    <i class="fas fa-file-download"></i>
+                </a>
+            {% } %}
+        </td>
+    </tr>
+{% } %}
+</script>
