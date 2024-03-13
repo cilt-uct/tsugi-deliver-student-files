@@ -20,8 +20,8 @@ $PDOX = LTIX::getConnection();
 $blob_stmt = $PDOX->prepare("SELECT `A`.blob_id ".
                         "FROM {$p}student_files `A` ".
                         "LEFT JOIN {$p}blob_file `blob` on `blob`.file_id = `A`.blob_id and `blob`.link_id = `A`.link_id ".
-                        "WHERE `blob`.context_id = :context_id");
-$blob_stmt->execute(array(":context_id" => 1));
+                        "WHERE `blob`.context_id in (select context_id from {$p}lti_context where context_key = :context_key)");
+$blob_stmt->execute(array(":context_key" => '456434513'));
 $blobs = $blob_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $rows = $blob_stmt->rowCount();
