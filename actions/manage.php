@@ -11,7 +11,7 @@ $p = $CFG->dbprefix;
 // Sanity checks
 $LAUNCH = LTIX::requireData(array(LTIX::CONTEXT, LTIX::LINK));
 
-error_reporting(E_ALL | E_STRICT);
+error_reporting(E_ALL);
 class UploadHandler {
 
     protected $options;
