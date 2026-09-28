@@ -16,22 +16,61 @@ $p = $CFG->dbprefix;
 
 $PDOX = LTIX::getConnection();
 
-// Get Blobs
-$blob_stmt = $PDOX->prepare("SELECT `A`.blob_id ".
-                        "FROM {$p}student_files `A` ".
-                        "LEFT JOIN {$p}blob_file `blob` on `blob`.file_id = `A`.blob_id and `blob`.link_id = `A`.link_id ".
-                        "WHERE `blob`.context_id in (select context_id from {$p}lti_context where context_key = :context_key)");
-$blob_stmt->execute(array(":context_key" => '456434513'));
-$blobs = $blob_stmt->fetchAll(PDO::FETCH_ASSOC);
+$PDOX->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
 
-$rows = $blob_stmt->rowCount();
+function statementError($stmt)
+{
+    $errorInfo = $stmt->errorInfo();
+    return $errorInfo[2] ?? 'Unknown database error';
+}
+
+$blob_stmt = $PDOX->prepare(
+    "SELECT `A`.blob_id ".
+    "FROM {$p}student_files `A` ".
+    "LEFT JOIN {$p}blob_file `blob` ".
+    "ON `blob`.file_id = `A`.blob_id ".
+    "AND `blob`.link_id = `A`.link_id ".
+    "WHERE `blob`.context_id IN ".
+    "(SELECT context_id FROM {$p}lti_context ".
+    "WHERE context_key = :context_key)"
+);
+
+$blobExecute = $blob_stmt->execute([
+    ':context_key' => '456434513'
+]);
+
+$blobs = $blobExecute ? $blob_stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+$rows = $blobExecute ? count($blobs) : 0;
 $success = 0;
 $error = 0;
+$response = [
+    'blob' => [
+        'count' => $rows,
+        'success' => 0,
+        'error' => 0,
+    ],
+    'del' => [
+        'count' => 0,
+        'success' => false,
+    ],
+];
+
+if (!$blobExecute) {
+    $response['blob']['query_error'] = statementError($blob_stmt);
+}
+
 foreach ($blobs as $row) {
     BlobUtil::deleteBlob($row['blob_id'], true);
 
     $verifyStmt = $PDOX->prepare("select file_id from {$p}blob_file where file_id = :blob_id");
-    $verifyStmt->execute(array(":blob_id" => $row['blob_id']));
+    $verifyExecute = $verifyStmt->execute(array(":blob_id" => $row['blob_id']));
+    if (!$verifyExecute) {
+        $error ++;
+        $response['blob']['verify_errors'][$row['blob_id']] = statementError($verifyStmt);
+        continue;
+    }
+
     if ($verifyStmt->rowCount() == 0) {
         $success ++;
     } else {
@@ -39,8 +78,23 @@ foreach ($blobs as $row) {
     }
 }
 
-// Clean up empty links
-$del_stmt = $PDOX->prepare("DELETE FROM {$p}student_files WHERE blob_id not in (SELECT file_id FROM tsugi_dev.blob_file)");
-$del_stmt->execute();
+$response['blob']['success'] = $success;
+$response['blob']['error'] = $error;
 
-echo json_encode(['del' => $del_stmt->rowCount(), 'blob'=> ['count' => $rows, 'success' => $success, 'error' => $error]]);
+// Clean up empty links
+$del_stmt = $PDOX->prepare(
+    "DELETE FROM {$p}student_files `student_file` ".
+    "WHERE NOT EXISTS (".
+    "SELECT 1 FROM {$p}blob_file `blob` ".
+    "WHERE `blob`.file_id = `student_file`.blob_id)"
+);
+$deleteSuccess = $del_stmt->execute();
+
+if ($deleteSuccess) {
+    $response['del']['count'] = $del_stmt->rowCount();
+    $response['del']['success'] = true;
+} else {
+    $response['del']['error'] = statementError($del_stmt);
+}
+
+echo json_encode($response);
