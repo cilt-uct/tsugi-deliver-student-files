@@ -24,14 +24,22 @@ $upload_max_size_bytes = BlobUtil::maxUploadBytes();
 $upload_max_size = U::displaySize($upload_max_size_bytes);
 
 $menu = false; // We are not using a menu
+$test_site = false;
 
 // $postdata = LTIX::ltiRawPostArray();
+
+if ($CONTEXT->key == 12345) {
+    $test_site = true;
+}
 
 $EID = $LAUNCH->ltiRawParameter('ext_d2l_username', $LAUNCH->ltiRawParameter('lis_person_sourcedid', $USER->id));
 $context = [
     'instructor' => $USER->instructor,
     'EID'        => $EID,
     'context_id' => $CONTEXT->id,
+    'context_key' => $CONTEXT->key,
+    'test_site' => $test_site,
+
     // 'postdata'   => $postdata,
     'styles'     => [ addSession('static/css/app.min.css'),
                         addSession('static/css/blueimp-gallery.min.css'),
